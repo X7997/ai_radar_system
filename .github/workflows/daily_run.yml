@@ -31,6 +31,7 @@ jobs:
       env:
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
-        GITHUB_GIST_TOKEN: ${{ secrets.GITHUB_GIST_TOKEN }}
+        GITHUB_GIST_TOKEN: ${{ secrets.MY_GIST_TOKEN }}
         GIST_ID: ${{ secrets.GIST_ID }}
+        XHS_COOKIE: ${{ secrets.XHS_COOKIE }}
       run: python main.py
