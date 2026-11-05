@@ -32,11 +32,13 @@ class RadarRemoteViewsFactory(
         // This is called when the widget is created or updated. It runs in a background thread.
         items.clear()
         try {
-            val urlStr = "https://gist.githubusercontent.com/X7997/816a07bc292aaf7d9936c4e4f8d3f5d8/raw/ai_radar_events.json" 
-            
+            val baseUrl = "https://gist.githubusercontent.com/X7997/7ad36328320740c54905a64368c2ee2f/raw/ai_radar_events.json" 
+            val urlStr = "$baseUrl?t=${System.currentTimeMillis()}"
             val url = URL(urlStr)
             val connection = url.openConnection() as HttpURLConnection
             connection.requestMethod = "GET"
+            connection.connectTimeout = 5000
+            connection.readTimeout = 5000
             
             if (connection.responseCode == HttpURLConnection.HTTP_OK) {
                 val response = connection.inputStream.bufferedReader().readText()
@@ -49,7 +51,8 @@ class RadarRemoteViewsFactory(
                         items.add(
                             RadarItem(
                                 title = event.optString("title"),
-                                summary = event.optString("summary"),
+                                enDesc = event.optString("en_desc", event.optString("summary")),
+                                zhDesc = event.optString("zh_desc"),
                                 url = event.optString("url"),
                                 tag = event.optString("tag")
                             )
@@ -58,12 +61,12 @@ class RadarRemoteViewsFactory(
                 }
             } else {
                 // Mock data if URL fails
-                items.add(RadarItem("No Data", "Check URL", "", "Error"))
+                items.add(RadarItem("No Data", "Check URL", "", "", "Error"))
             }
         } catch (e: Exception) {
             e.printStackTrace()
             // Add a mock item for visual testing
-            items.add(RadarItem("Local Mock Event", "AI Radar Widget setup incomplete. Update Gist URL.", "https://codexradar.com", "System"))
+            items.add(RadarItem("Local Mock Event", "AI Radar Widget setup incomplete. Update Gist URL.", "", "https://codexradar.com", "System"))
         }
     }
 
@@ -73,18 +76,68 @@ class RadarRemoteViewsFactory(
 
     override fun getCount(): Int = items.size
 
+    private fun formatMarkdown(text: String): String {
+        if (text.isEmpty()) return ""
+        val boldPattern = Regex("\\*\\*(.*?)\\*\\*")
+        // Render bold keywords in tech blue (#1976D2) for sharp contrast on black text
+        return boldPattern.replace(text, "<font color='#1976D2'><b>$1</b></font>")
+    }
+
+    private fun parseHtml(htmlStr: String): CharSequence {
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            android.text.Html.fromHtml(htmlStr, android.text.Html.FROM_HTML_MODE_COMPACT)
+        } else {
+            android.text.Html.fromHtml(htmlStr)
+        }
+    }
+
+    private fun formatTag(tag: String, title: String): String {
+        var t = tag.trim()
+        if (t.startsWith("#")) t = t.substring(1).trim()
+        if (t.startsWith("【#") && t.endsWith("】")) t = t.substring(2, t.length - 1).trim()
+        if (t.startsWith("【") && t.endsWith("】")) t = t.substring(1, t.length - 1).trim()
+        
+        if (t.isEmpty()) {
+            t = when {
+                title.contains("Codex") || title.contains("Tibo") -> "Codex 独家雷达"
+                title.contains("外交") || title.contains("出口管制") || title.contains("中美") || title.contains("政策") -> "宏观与科技政策"
+                title.contains("芯片") || title.contains("半导体") || title.contains("NVIDIA") -> "芯片与算力前沿"
+                title.contains("具身智能") || title.contains("机器人") -> "具身智能与机器人"
+                title.contains("Agent") || title.contains("模型") || title.contains("Claude") -> "前沿模型与 Agent"
+                title.contains("开源") || title.contains("GitHub") -> "开源与极客生态"
+                else -> "全球 AI 产业精选"
+            }
+        }
+        return if (t.startsWith("·")) t else "· $t"
+    }
+
     override fun getViewAt(position: Int): RemoteViews {
         if (position >= items.size) return RemoteViews(context.packageName, R.layout.widget_item)
         
         val item = items[position]
         val views = RemoteViews(context.packageName, R.layout.widget_item)
         
-        // Populate UI
-        views.setTextViewText(R.id.item_title, item.title)
-        views.setTextViewText(R.id.item_summary, item.summary)
+        // Row 1: Source / Category Tag (Above title, formatted like Douyin cards)
+        val displayTag = formatTag(item.tag, item.title)
+        if (displayTag.isNotEmpty()) {
+            views.setViewVisibility(R.id.item_tag, android.view.View.VISIBLE)
+            views.setTextViewText(R.id.item_tag, displayTag)
+        } else {
+            views.setViewVisibility(R.id.item_tag, android.view.View.GONE)
+        }
+
+        // Row 2: Title (Full width with bold parsing)
+        views.setTextViewText(R.id.item_title, parseHtml(formatMarkdown(item.title)))
         
-        val timeStr = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date())
-        views.setTextViewText(R.id.item_time, "$timeStr, [${item.tag}]")
+        // Row 3: Primary Description (Render Markdown **bold** as true Bold Spans)
+        views.setTextViewText(R.id.item_en_desc, parseHtml(formatMarkdown(item.enDesc)))
+        
+        if (item.zhDesc.isNotEmpty()) {
+            views.setViewVisibility(R.id.item_zh_desc, android.view.View.VISIBLE)
+            views.setTextViewText(R.id.item_zh_desc, parseHtml(formatMarkdown(item.zhDesc)))
+        } else {
+            views.setViewVisibility(R.id.item_zh_desc, android.view.View.GONE)
+        }
 
         // Fill in the intent template to open the URL
         val fillInIntent = Intent().apply {
@@ -103,7 +156,8 @@ class RadarRemoteViewsFactory(
 
 data class RadarItem(
     val title: String,
-    val summary: String,
+    val enDesc: String,
+    val zhDesc: String,
     val url: String,
     val tag: String
 )

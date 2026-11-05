@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.env
+.env
+.venv/
+venv/
+env/
+
+# Sensitive State & Session
+*.state.json
+douyin_state*.json
+chrome_data/
+xhs_cookie.txt
+
+# Temporary Outputs & Logs
+*.log
+*.png
+*.jpg
+*.jpeg
+generated_cards/
+downloaded_tasks.json
+temp_post_*.json
+publish_receipt*.json
+last_post_date.txt
+last_published_titles.json
+crash_check.txt
+logcat*.txt
+widget_check.txt
+widget_errors.txt
+recent_*.txt
+window_dump.xml
+
+# Android
+.gradle/
+.idea/
+.kotlin/
+build/
+app/build/
+local.properties
+*.apk

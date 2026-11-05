@@ -2,99 +2,21 @@ import os
 import json
 import time
 import requests
+import subprocess
 from bs4 import BeautifulSoup
 from google import genai
 from google.genai import types
+from datetime import datetime
+from dotenv import load_dotenv
+from PIL import Image, ImageDraw
+from mail_fetcher import fetch_summarized_events_from_gmail
+
+load_dotenv()
 
 # Configurations
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 FEISHU_WEBHOOK_URL = os.environ.get("FEISHU_WEBHOOK_URL")
 GITHUB_GIST_TOKEN = os.environ.get("GITHUB_GIST_TOKEN")
 GIST_ID = os.environ.get("GIST_ID") # Optional, if updating an existing Gist
-
-def fetch_codexradar():
-    print("Fetching codexradar.com...")
-    url = "https://codexradar.com/"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    }
-    
-    events = []
-    try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # This parsing logic needs to be tailored to the actual codexradar.com DOM structure.
-        # Since it's often a React/Next.js app, we might need to parse JSON from script tags
-        # or find specific HTML elements.
-        # As a placeholder, we extract <h2> or elements with specific classes.
-        articles = soup.find_all('article')
-        if not articles:
-            # Fallback for generic blogs
-            articles = soup.find_all('div', class_='post')
-            
-        for article in articles[:15]:
-            title_elem = article.find('h2') or article.find('h3')
-            if title_elem:
-                title = title_elem.get_text(strip=True)
-                link_elem = title_elem.find('a') if title_elem else None
-                link = link_elem['href'] if link_elem and link_elem.has_attr('href') else url
-                if not link.startswith('http'):
-                    link = "https://codexradar.com" + link
-                    
-                content_elem = article.find('p')
-                content = content_elem.get_text(strip=True) if content_elem else ""
-                
-                events.append({
-                    "title": title,
-                    "url": link,
-                    "content": content
-                })
-    except Exception as e:
-        print(f"Error fetching codexradar: {e}")
-        
-    return events
-
-def summarize_events(events):
-    if not GEMINI_API_KEY:
-        print("No Gemini API Key provided, returning raw events.")
-        return [{"title": e['title'], "summary": e['content'], "url": e['url'], "tag": "Tech"} for e in events[:10]]
-        
-    print("Summarizing with Gemini API...")
-    client = genai.Client(api_key=GEMINI_API_KEY)
-    
-    prompt = """
-    You are an expert AI news editor. I will provide you with a list of recent tech/AI/political/economic events.
-    Please select the top 10 most important and interesting events (prioritize AI and tech, roughly 80% AI/Tech, 20% major political/economic).
-    For each event, provide:
-    1. A short, punchy title in Chinese.
-    2. A brief, 1-2 sentence summary in Chinese.
-    3. A tag categorizing it (e.g., 'AI', 'Economy', 'Politics', 'Tech').
-    
-    Return the result strictly as a JSON list of objects, where each object has:
-    - "title": (string)
-    - "summary": (string)
-    - "tag": (string)
-    - "url": (string, use the original URL)
-    - "timestamp": (string, current date/time)
-    
-    Raw Events:
-    """
-    prompt += json.dumps(events, ensure_ascii=False, indent=2)
-    
-    try:
-        response = client.models.generate_content(
-            model='gemini-3.6-flash',
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json"
-            )
-        )
-        return json.loads(response.text)
-    except Exception as e:
-        print(f"Error calling Gemini API: {e}")
-        return []
 
 def post_to_feishu(summarized_events):
     if not FEISHU_WEBHOOK_URL:
@@ -105,9 +27,15 @@ def post_to_feishu(summarized_events):
     
     card_elements = []
     for event in summarized_events:
+        content_text = event.get('full_text', event.get('summary', ''))
+        # Limit text length in Feishu to avoid huge cards, or just pass it all
+        if len(content_text) > 2000:
+            content_text = content_text[:2000] + "...(阅读更多)"
+            
+        url_text = f"\n\n[🔗 点击直达原文]({event.get('url')})" if event.get('url') else ""
         card_elements.append({
             "tag": "markdown",
-            "content": f"**[{event.get('tag', 'News')}] {event.get('title', '')}**\n{event.get('summary', '')}\n[查看原文]({event.get('url', '')})"
+            "content": f"**[{event.get('tag', 'CodexRadar')}] {event.get('title', '')}**\n\n{content_text}{url_text}"
         })
         card_elements.append({
             "tag": "hr"
@@ -119,7 +47,7 @@ def post_to_feishu(summarized_events):
             "header": {
                 "title": {
                     "tag": "plain_text",
-                    "content": "🚀 每日 AI & 科技早报"
+                    "content": "🚀 AI 雷达邮箱专报"
                 },
                 "template": "blue"
             },
@@ -159,20 +87,19 @@ def update_github_gist(summarized_events):
     
     try:
         if GIST_ID:
-            # Update existing gist
             url = f"https://api.github.com/gists/{GIST_ID}"
             resp = requests.patch(url, headers=headers, json=data)
         else:
-            # Create new gist
             url = "https://api.github.com/gists"
             resp = requests.post(url, headers=headers, json=data)
             
         resp.raise_for_status()
         gist_info = resp.json()
+        import re
         raw_url = gist_info['files']['ai_radar_events.json']['raw_url']
+        raw_url = re.sub(r'/raw/[a-f0-9]+/', '/raw/', raw_url)
         print(f"Gist updated successfully. Raw URL: {raw_url}")
         
-        # If a new gist was created, print the ID so the user can save it
         if not GIST_ID:
             print(f"NEW GIST ID: {gist_info['id']} -> Please save this as GIST_ID secret for future updates.")
             
@@ -182,56 +109,71 @@ def update_github_gist(summarized_events):
         return None
 
 def publish_to_xhs(events):
-    xhs_cookie = os.environ.get("XHS_COOKIE")
-    if not xhs_cookie:
-        print("No XHS_COOKIE found. Skipping Xiaohongshu.")
-        return
-
-    print("Xiaohongshu Cookie found. Preparing to publish...")
-    
-    # 组合文案
+    print("Xiaohongshu Publishing process started...")
     title = f"🚀 AI科技雷达早报 ({datetime.now().strftime('%m月%d日')})"
     desc = "每天早上为您精选最重磅的AI与科技圈大事件！\n\n"
     for idx, e in enumerate(events, 1):
         desc += f"{idx}. {e['title']}\n"
+        if len(desc) > 800:
+            desc += "...详细内容请看主页哦！"
+            break
     
     desc += "\n#AI #科技 #早报 #人工智能 #科技资讯"
     
-    print(f"【小红书草稿】\n标题: {title}\n正文: {desc}")
-    print("注意：小红书官方接口限制较严且必须配图。此处代码已接入您的 Cookie，如需完全自动化发布，建议在此处引入 Playwright 或 Pillow 生成配套图片进行自动化上传。")
+def publish_to_xhs(event, image_path):
+    print("Saving Xiaohongshu publish task to pending_xhs_tasks.json...")
+    
+    title = f"AI Radar 科技早报 {datetime.now().strftime('%Y-%m-%d')}"
+    desc = f"今日 AI 科技速览：\n\n{event['summary']}\n\n#AI #科技 #人工智能"
+    
+    task_data = {
+        "title": title,
+        "desc": desc,
+        "image_file": os.path.basename(image_path),
+        "created_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        "date_str": datetime.now().strftime('%Y-%m-%d')
+    }
+    
+    task_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pending_xhs_tasks.json")
+    try:
+        with open(task_file, "w", encoding="utf-8") as f:
+            json.dump(task_data, f, ensure_ascii=False, indent=2)
+        print(f"Task saved to {task_file}")
+        return True
+    except Exception as e:
+        print(f"Error saving task: {e}")
+        return False
 
 def main():
-    print("Starting AI Radar Pipeline...")
+    print("Starting AI Radar Pipeline (Gmail IMAP mode)...")
     
-    # 1. Fetch
-    events = fetch_codexradar()
+    events = fetch_summarized_events_from_gmail()
     
-    # If no events (e.g. parsing failed due to JS rendering), use mock data for testing
     if not events:
-        print("No events fetched, using fallback/mock data for testing.")
-        events = [
-            {"title": "OpenAI releases new ChatGPT feature", "url": "https://codexradar.com", "content": "A new feature allows better coding assistance."},
-            {"title": "Nvidia announces new AI chip", "url": "https://codexradar.com", "content": "The new chip is 10x faster for training large models."}
-        ]
-        
-    # 2. Summarize
-    summarized_events = summarize_events(events)
-    if not summarized_events:
-        print("Failed to summarize events.")
+        print("No emails found or missing credentials. Checking fallback.")
         return
         
-    # 3. Post to Feishu
-    post_to_feishu(summarized_events)
+    post_to_feishu(events)
     
-    # 4. Update Gist for Android App
-    raw_url = update_github_gist(summarized_events)
+    raw_url = update_github_gist(events)
     if raw_url:
         print(f"Android Widget JSON URL: {raw_url}")
-        
-    # 5. Post to Xiaohongshu
-    post_xiaohongshu(summarized_events)
+    if events:
+        print("Generating pure color background image for Xiaohongshu...")
+        img_path = "xhs_bg.jpg"
+        try:
+            from PIL import Image, ImageDraw
+            img = Image.new('RGB', (1080, 1440), color=(173, 216, 230))
+            d = ImageDraw.Draw(img)
+            d.text((100, 700), "AI Radar Daily News", fill=(0, 0, 0))
+            img.save(img_path)
+        except Exception as e:
+            print(f"Failed to generate image: {e}")
+            return
+            
+        publish_to_xhs(events[0], img_path)
     
-    print("Pipeline completed.")
+    print("Pipeline complete.")
 
 if __name__ == "__main__":
     main()

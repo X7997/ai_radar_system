@@ -40,10 +40,15 @@ class RadarWidgetProvider : AppWidgetProvider() {
                 // This adapter connects to a RemoteViewsService through the specified intent.
                 setRemoteAdapter(R.id.widget_list_view, intent)
                 setEmptyView(R.id.widget_list_view, R.id.empty_view)
+                
+                // Set current date
+                val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault())
+                val currentDate = sdf.format(java.util.Date())
+                setTextViewText(R.id.widget_date, currentDate)
             }
 
-            // Template for item click to open browser
-            val clickIntentTemplate = Intent(Intent.ACTION_VIEW)
+            // Template for item click to open browser (API 34+ fix: use explicit intent)
+            val clickIntentTemplate = Intent(context, MainActivity::class.java)
             val clickPendingIntentTemplate: PendingIntent = PendingIntent.getActivity(
                 context, 0, clickIntentTemplate,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
@@ -53,6 +58,23 @@ class RadarWidgetProvider : AppWidgetProvider() {
             // Instruct the widget manager to update the widget
             appWidgetManager.updateAppWidget(appWidgetId, views)
             appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_list_view)
+        }
+    }
+
+    override fun onReceive(context: Context, intent: Intent) {
+        super.onReceive(context, intent)
+        if (intent.action == "com.example.airadarwidget.ACTION_ITEM_CLICK") {
+            val url = intent.data
+            if (url != null) {
+                try {
+                    val browserIntent = Intent(Intent.ACTION_VIEW, url).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                    context.startActivity(browserIntent)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
         }
     }
 }
