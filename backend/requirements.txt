@@ -1,4 +1,8 @@
+# 核心网络请求库
 requests
+# HTML/XML 网页结构解析
 beautifulsoup4
+# 谷歌 Gemini 官方大模型 API SDK
 google-genai
+# 小红书自动化交互扩展
 xhs

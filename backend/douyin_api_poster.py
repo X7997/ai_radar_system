@@ -17,7 +17,7 @@ except Exception:
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python douyin_api_poster.py <post_json_file>")
+        print("使用方法: python douyin_api_poster.py <待发布任务JSON文件>")
         sys.exit(1)
 
     with open(sys.argv[1], 'r', encoding='utf-8') as f:
@@ -31,7 +31,7 @@ def main():
     if len(title) > 20:
         title = title[:20]
 
-    print(f"Starting Playwright for Douyin... Publishing: '{title}' ({len(title)} chars), {len(image_paths)} images")
+    print(f"启动 Playwright 抖音发布引擎... 正在发布: '{title}' ({len(title)} 字符), {len(image_paths)} 张图片")
 
     state_path = "douyin_state.json"
     if not os.path.exists(state_path):
@@ -42,7 +42,7 @@ def main():
             state_path = "q:/xiaohonshu/ai_radar_system/douyin_state.json"
 
     if not os.path.exists(state_path):
-        print("ERROR: douyin_state.json not found! Please run douyin_login.py first.")
+        print("错误: 未找到 douyin_state.json 登录凭证！请先执行 douyin_login.py 登录。")
         sys.exit(1)
 
     with sync_playwright() as p:
@@ -63,17 +63,17 @@ def main():
             try:
                 stealth_applier(page)
             except Exception as e:
-                print(f"Stealth warning: {e}")
+                print(f"防检测伪装提示: {e}")
         page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined});")
         page.add_init_script("Object.defineProperty(navigator, 'platform', {get: () => 'Win32'});")
 
         # Navigate to Publisher
-        print("Navigating to Image Publish Page...")
+        print("正在导航至抖音创作者中心图文发布页面...")
         page.goto("https://creator.douyin.com/creator-micro/content/upload", timeout=60000, wait_until="domcontentloaded")
         time.sleep(4)
         
         # Switch to 发布图文 Tab
-        print("Switching to 发布图文 tab...")
+        print("正在切换至【发布图文】标签页...")
         img_inp = None
         for attempt in range(5):
             tab = page.locator('text=发布图文').first
@@ -93,38 +93,38 @@ def main():
                     img_inp = inp
                     break
             if img_inp:
-                print("Image input found successfully!")
+                print("成功定位到图片上传文件控件！")
                 break
             time.sleep(1)
 
         if not img_inp:
-            print("ERROR: Could not find image input element.")
+            print("错误: 未能找到图片上传文件控件。")
             browser.close()
             sys.exit(1)
 
-        print(f"Uploading {len(image_paths)} images...")
+        print(f"正在上传 {len(image_paths)} 张高清排版卡片...")
         img_inp.set_input_files(image_paths)
 
         # Wait dynamically for upload completion
-        print("Waiting for images to finish uploading and processing...")
+        print("正在等待图片上传及云端渲染处理...")
         uploaded = False
         for sec in range(60):
             time.sleep(1)
             body_txt = page.evaluate("() => document.body.innerText")
             if f"已添加{len(image_paths)}张图片" in body_txt or "重新上传" in body_txt or "更换图片" in body_txt:
-                print(f"All {len(image_paths)} images successfully uploaded and processed at {sec+1}s!")
+                print(f"全部 {len(image_paths)} 张图片已在第 {sec+1} 秒成功上传并处理完成！")
                 uploaded = True
                 break
             if (sec + 1) % 5 == 0:
-                print(f"Waiting for upload... {sec+1}s elapsed")
+                print(f"等待上传处理中... 已耗时 {sec+1} 秒")
 
         if not uploaded:
-            print("Upload detection timeout, continuing to form filling...")
+            print("等待上传检测超时，继续执行表单填写...")
 
         time.sleep(2)
 
         # Fill Title
-        print(f"Filling Title: '{title}'...")
+        print(f"正在填写作品标题: '{title}'...")
         try:
             title_input = page.locator('input[placeholder*="标题"]').first
             if title_input.count() == 0:
@@ -132,16 +132,16 @@ def main():
             if title_input.count() > 0:
                 title_input.click()
                 title_input.fill(title)
-                print("Title filled successfully.")
+                print("作品标题填写成功。")
             else:
-                print("Warning: Title input not found.")
+                print("警告: 未能找到标题输入框。")
         except Exception as e:
-            print(f"Title fill error: {e}")
+            print(f"填写标题异常: {e}")
 
         # Fill Description (Minimalist: 0 URLs, 0 descriptions, only date and tags)
         clean_desc = re.sub(r'https?://\S+|www\.\S+', '', desc).strip() if desc else ""
         if clean_desc:
-            print(f"Filling Description ({len(clean_desc)} chars, stripped of any links)...")
+            print(f"正在填写作品正文描述 ({len(clean_desc)} 字，已过滤外链)...")
             try:
                 desc_zones = ['.zone-container', '.editor-kit-editor-container', '[contenteditable="true"]', 'textarea']
                 filled_desc = False
@@ -151,19 +151,19 @@ def main():
                         zone.click()
                         page.keyboard.insert_text(clean_desc[:950])
                         filled_desc = True
-                        print(f"Description filled via {sel}.")
+                        print(f"通过选择器 {sel} 成功填写描述。")
                         break
                 if not filled_desc:
-                    print("Warning: Description zone not found.")
+                    print("警告: 未能找到描述输入区域。")
             except Exception as e:
-                print(f"Description fill error: {e}")
+                print(f"填写描述异常: {e}")
         else:
-            print("Notice: Description is empty as requested. Skipping description input.")
+            print("提示: 描述为空，跳过描述填写。")
 
         time.sleep(2)
 
         # Scroll to Publish Button
-        print("Scrolling to bottom...")
+        print("正在滑动页面至底部...")
         page.evaluate("() => window.scrollTo(0, document.body.scrollHeight)")
         time.sleep(2)
 
@@ -178,18 +178,18 @@ def main():
         if not pub_btn:
             pub_btn = page.locator('button:text-is("发布")').last
 
-        print("Clicking '发布' button...")
+        print("正在点击【发布】按钮...")
         pub_btn.click()
 
         # Verify Publish Success
-        print("Waiting for publish completion / redirect...")
+        print("正在等待发布提交完成及页面跳转...")
         published = False
         for s in range(30):
             time.sleep(1)
             cur_url = page.url
             body_txt = page.evaluate("() => document.body.innerText")
             if 'manage' in cur_url or '发布成功' in body_txt or '作品发布成功' in body_txt:
-                print(f"Publish verified at {s+1}s! URL: {cur_url}")
+                print(f"在第 {s+1} 秒成功验证作品已发布！当前页面 URL: {cur_url}")
                 published = True
                 break
 
@@ -201,10 +201,10 @@ def main():
             except Exception:
                 pass
             browser.close()
-            print("SUCCESS! Note published")
+            print("发布成功！作品已成功发布至抖音。")
         else:
             browser.close()
-            print("ERROR: Could not verify publish success.")
+            print("错误: 无法验证作品发布状态。")
             sys.exit(1)
 
 if __name__ == "__main__":

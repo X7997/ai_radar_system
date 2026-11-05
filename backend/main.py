@@ -20,10 +20,10 @@ GIST_ID = os.environ.get("GIST_ID") # Optional, if updating an existing Gist
 
 def post_to_feishu(summarized_events):
     if not FEISHU_WEBHOOK_URL:
-        print("No Feishu webhook provided. Skipping Feishu push.")
+        print("未配置飞书 Webhook，跳过飞书推送。")
         return
         
-    print("Pushing to Feishu...")
+    print("正在推送至飞书群机器人...")
     
     card_elements = []
     for event in summarized_events:
@@ -58,16 +58,16 @@ def post_to_feishu(summarized_events):
     try:
         resp = requests.post(FEISHU_WEBHOOK_URL, json=payload)
         resp.raise_for_status()
-        print("Feishu push successful.")
+        print("飞书卡片推送成功。")
     except Exception as e:
-        print(f"Feishu push failed: {e}")
+        print(f"飞书卡片推送失败: {e}")
 
 def update_github_gist(summarized_events):
     if not GITHUB_GIST_TOKEN:
-        print("No GitHub Gist token provided. Skipping Gist update.")
+        print("未配置 GITHUB_GIST_TOKEN，跳过 Gist 同步。")
         return None
         
-    print("Updating GitHub Gist...")
+    print("正在更新 GitHub Gist 数据...")
     headers = {
         "Authorization": f"token {GITHUB_GIST_TOKEN}",
         "Accept": "application/vnd.github.v3+json"
@@ -76,7 +76,7 @@ def update_github_gist(summarized_events):
     content = json.dumps({"events": summarized_events}, ensure_ascii=False, indent=2)
     
     data = {
-        "description": "Daily AI Radar Events for Android Widget",
+        "description": "AI Radar 安卓桌面小组件资讯流",
         "public": True,
         "files": {
             "ai_radar_events.json": {
@@ -98,18 +98,18 @@ def update_github_gist(summarized_events):
         import re
         raw_url = gist_info['files']['ai_radar_events.json']['raw_url']
         raw_url = re.sub(r'/raw/[a-f0-9]+/', '/raw/', raw_url)
-        print(f"Gist updated successfully. Raw URL: {raw_url}")
+        print(f"GitHub Gist 同步成功！直链 URL: {raw_url}")
         
         if not GIST_ID:
             print(f"NEW GIST ID: {gist_info['id']} -> Please save this as GIST_ID secret for future updates.")
             
         return raw_url
     except Exception as e:
-        print(f"Gist update failed: {e}")
+        print(f"GitHub Gist 同步失败: {e}")
         return None
 
 def publish_to_xhs(events):
-    print("Xiaohongshu Publishing process started...")
+    print("小红书发布流程已启动...")
     title = f"🚀 AI科技雷达早报 ({datetime.now().strftime('%m月%d日')})"
     desc = "每天早上为您精选最重磅的AI与科技圈大事件！\n\n"
     for idx, e in enumerate(events, 1):
@@ -121,7 +121,7 @@ def publish_to_xhs(events):
     desc += "\n#AI #科技 #早报 #人工智能 #科技资讯"
     
 def publish_to_xhs(event, image_path):
-    print("Saving Xiaohongshu publish task to pending_xhs_tasks.json...")
+    print("正在将待发布任务保存至 pending_xhs_tasks.json...")
     
     title = f"AI Radar 科技早报 {datetime.now().strftime('%Y-%m-%d')}"
     desc = f"今日 AI 科技速览：\n\n{event['summary']}\n\n#AI #科技 #人工智能"
@@ -138,28 +138,28 @@ def publish_to_xhs(event, image_path):
     try:
         with open(task_file, "w", encoding="utf-8") as f:
             json.dump(task_data, f, ensure_ascii=False, indent=2)
-        print(f"Task saved to {task_file}")
+        print(f"任务已持久化写入 {task_file}")
         return True
     except Exception as e:
-        print(f"Error saving task: {e}")
+        print(f"保存任务文件失败: {e}")
         return False
 
 def main():
-    print("Starting AI Radar Pipeline (Gmail IMAP mode)...")
+    print("启动 AI Radar 处理流水线 (Gmail IMAP 抓取模式)...")
     
     events = fetch_summarized_events_from_gmail()
     
     if not events:
-        print("No emails found or missing credentials. Checking fallback.")
+        print("未检索到符合条件的邮件或缺少凭证，检查备用流程。")
         return
         
     post_to_feishu(events)
     
     raw_url = update_github_gist(events)
     if raw_url:
-        print(f"Android Widget JSON URL: {raw_url}")
+        print(f"安卓桌面小组件数据源 URL: {raw_url}")
     if events:
-        print("Generating pure color background image for Xiaohongshu...")
+        print("正在生成纯色背景排版图片...")
         img_path = "xhs_bg.jpg"
         try:
             from PIL import Image, ImageDraw
@@ -168,12 +168,12 @@ def main():
             d.text((100, 700), "AI Radar Daily News", fill=(0, 0, 0))
             img.save(img_path)
         except Exception as e:
-            print(f"Failed to generate image: {e}")
+            print(f"生成图片失败: {e}")
             return
             
         publish_to_xhs(events[0], img_path)
     
-    print("Pipeline complete.")
+    print("AI Radar 任务流水线执行圆满完成！")
 
 if __name__ == "__main__":
     main()

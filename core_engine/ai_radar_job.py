@@ -31,7 +31,7 @@ except Exception:
 sys.stdout.reconfigure(encoding='utf-8')
 sys.stderr.reconfigure(encoding='utf-8')
 
-# ==================== CONFIGURATION ====================
+# ==================== 核心配置与参数 ====================
 BASE_DIR = "/root"
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "AQ.Ab8RN6IwBJF4HZmqZoCjZuRXc5ukksMJXCZVfSFVJ0O_yGLPwg")
 
@@ -251,7 +251,7 @@ def fetch_fresh_tech_pool(history_titles):
                             "source": "GoogleNews"
                         })
         except Exception as e:
-            print(f"Google RSS {cat} error: {e}")
+            print(f"Google RSS 频道 {cat} 抓取异常: {e}")
 
     direct_rss = [
         ("TechCrunch AI", "https://techcrunch.com/category/artificial-intelligence/feed/", "Industry&Dev"),
@@ -289,7 +289,7 @@ def fetch_fresh_tech_pool(history_titles):
                             "source": name
                         })
         except Exception as e:
-            print(f"Direct RSS {name} error: {e}")
+            print(f"直连 RSS 频道 {name} 抓取异常: {e}")
 
     try:
         req = urllib.request.Request('https://huggingface.co/api/daily_papers', headers={'User-Agent': 'Mozilla/5.0'})
@@ -319,7 +319,7 @@ def fetch_fresh_tech_pool(history_titles):
                         "source": "HuggingFace"
                     })
     except Exception as e:
-        print(f"HuggingFace error: {e}")
+        print(f"HuggingFace 论文接口抓取异常: {e}")
 
     print(f"聚合引擎抓取完毕！过滤历史重复 {filtered_duplicates} 条，共获得 {len(candidates)} 条高实时性候选资讯！")
     return candidates
@@ -590,7 +590,7 @@ def push_to_github_gist(events):
     }
 
     payload = {
-        "description": "Daily AI Radar Events for Android Widget",
+        "description": "AI Radar 安卓桌面小组件资讯流",
         "public": True,
         "files": {
             "ai_radar_events.json": {
@@ -613,7 +613,7 @@ def push_to_github_gist(events):
         return False
 
 # ==========================================
-# Card Rendering Engine (Server-Side)
+# 早报排版卡片本地渲染引擎 (服务器端)
 # ==========================================
 
 def get_source_label(ev):
@@ -812,14 +812,14 @@ def render_editorial_cards(events, date_str, output_dir):
         img = Image.new("RGB", (W, H), (255, 255, 255))
         draw = ImageDraw.Draw(img)
 
-        # Header
+        # 卡片顶部品牌与日期区
         draw.text((margin_x, 82), "AI RADAR", font=font_header_brand, fill=(24, 62, 138))
         draw.text((margin_x + 195, 93), f"全球科技情报日刊 · {date_header_str}", font=font_header_title, fill=(74, 85, 104))
         page_str = f"{page_idx:02d} / {total_pages:02d}"
         draw.text((W - margin_x - font_header_page.getlength(page_str), 90), page_str, font=font_header_page, fill=(160, 174, 192))
         draw.line([(margin_x, 148), (W - margin_x, 148)], fill=(226, 232, 240), width=2)
 
-        # Content Flow
+        # 卡片新闻正文排版流
         cur_y = 176
         for b_idx, it in enumerate(batch):
             source_y = cur_y
@@ -851,7 +851,7 @@ def render_editorial_cards(events, date_str, output_dir):
 
             cur_y += it["height"] + item_gap
 
-        # Footer
+        # 卡片底部版权与标识
         draw.line([(margin_x, 1354), (W - margin_x, 1354)], fill=(226, 232, 240), width=2)
         draw.text((margin_x, 1368), "AI RADAR · 每日核心情报精选", font=font_footer, fill=(160, 174, 192))
 
@@ -863,13 +863,13 @@ def render_editorial_cards(events, date_str, output_dir):
     return image_paths
 
 # ==========================================
-# Douyin Cloud Automated Publisher (Playwright)
+# 抖音云端自动化发布引擎 (Playwright 深度伪装)
 # ==========================================
 
 def publish_to_douyin(title, desc, image_paths):
     print("[6/6] 启动云端 Playwright 无头浏览器发布抖音...")
     if not os.path.exists(DOUYIN_STATE_FILE):
-        print(f"ERROR: {DOUYIN_STATE_FILE} not found! Cannot publish.")
+        print(f"错误: 未找到登录凭据 {DOUYIN_STATE_FILE}，无法执行发布！")
         return False
 
     if len(title) > 20:
@@ -897,16 +897,16 @@ def publish_to_douyin(title, desc, image_paths):
         page = context.new_page()
         if stealth_applier:
             try: stealth_applier(page)
-            except Exception as e: print(f"Stealth warning: {e}")
+            except Exception as e: print(f"防检测伪装提示: {e}")
 
         page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined});")
         page.add_init_script("Object.defineProperty(navigator, 'platform', {get: () => 'Win32'});")
 
-        print("Navigating to Image Publish Page...")
+        print("正在导航至抖音创作者中心图文发布页面...")
         page.goto("https://creator.douyin.com/creator-micro/content/upload", timeout=60000, wait_until="domcontentloaded")
         time.sleep(4)
 
-        print("Switching to 发布图文 tab...")
+        print("正在切换至【发布图文】标签页...")
         img_inp = None
         for attempt in range(5):
             tab = page.locator('text=发布图文').first
@@ -923,33 +923,33 @@ def publish_to_douyin(title, desc, image_paths):
                     img_inp = inp
                     break
             if img_inp:
-                print("Image input found successfully!")
+                print("成功定位到图片上传文件控件！")
                 break
             time.sleep(1)
 
         if not img_inp:
-            print("ERROR: Could not find image input element.")
+            print("错误: 未能找到图片上传文件控件。")
             browser.close()
             return False
 
-        print(f"Uploading {len(image_paths)} images...")
+        print(f"正在上传 {len(image_paths)} 张高清排版卡片...")
         img_inp.set_input_files(image_paths)
 
-        print("Waiting for images to finish uploading and processing...")
+        print("正在等待图片上传及云端渲染处理...")
         uploaded = False
         for sec in range(60):
             time.sleep(1)
             body_txt = page.evaluate("() => document.body.innerText")
             if f"已添加{len(image_paths)}张图片" in body_txt or "重新上传" in body_txt or "更换图片" in body_txt:
-                print(f"All {len(image_paths)} images successfully uploaded and processed at {sec+1}s!")
+                print(f"全部 {len(image_paths)} 张图片已在第 {sec+1} 秒成功上传并处理完成！")
                 uploaded = True
                 break
 
         if not uploaded:
-            print("Warning: Image upload status text not detected within 60s, proceeding...")
+            print("提示: 60 秒内未检测到上传就绪文本，尝试继续流程...")
 
-        # Title
-        print(f"Filling Title: '{title}'...")
+        # 填写作品标题
+        print(f"正在填写作品标题: '{title}'...")
         title_inputs = [
             page.locator('input[placeholder*="填写作品标题"]'),
             page.locator('input[placeholder*="标题"]'),
@@ -962,13 +962,13 @@ def publish_to_douyin(title, desc, image_paths):
                     inp.first.click()
                     inp.first.fill(title)
                     title_filled = True
-                    print("Title filled successfully.")
+                    print("作品标题填写成功。")
                     break
                 except Exception: pass
 
-        # Description
+        # 填写作品描述
         clean_desc = re.sub(r'https?://\S+', '', desc)
-        print(f"Filling Description ({len(clean_desc)} chars, stripped of links)...")
+        print(f"正在填写作品正文描述 ({len(clean_desc)} 字，已过滤外链)...")
         desc_containers = [
             page.locator('.zone-container'),
             page.locator('.notranslate.public-DraftEditor-content'),
@@ -981,12 +981,12 @@ def publish_to_douyin(title, desc, image_paths):
                     container.first.click()
                     container.first.fill(clean_desc)
                     desc_filled = True
-                    print("Description filled successfully.")
+                    print("作品正文描述填写成功。")
                     break
                 except Exception: pass
 
-        # Publish Button
-        print("Scrolling to bottom...")
+        # 点击发布按钮
+        print("正在滑动页面至底部...")
         page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
         time.sleep(2)
 
@@ -999,24 +999,24 @@ def publish_to_douyin(title, desc, image_paths):
         btn_clicked = False
         for btn in publish_buttons:
             if btn.count() > 0 and btn.first.is_visible():
-                print(f"Clicking '{btn.first.inner_text().strip()}' button...")
+                print(f"正在点击【{btn.first.inner_text().strip()}】按钮...")
                 btn.first.click()
                 btn_clicked = True
                 break
 
         if not btn_clicked:
-            print("ERROR: Could not find publish button!")
+            print("错误: 未能定位到发布按钮！")
             browser.close()
             return False
 
-        print("Waiting for publish completion / redirect...")
+        print("正在等待发布提交完成及页面跳转...")
         success = False
         for s in range(25):
             time.sleep(1)
             cur_url = page.url
             body_txt = page.evaluate("() => document.body.innerText")
             if "manage" in cur_url or "发布成功" in body_txt or "作品发布成功" in body_txt:
-                print(f"Publish verified at {s+1}s! URL: {cur_url}")
+                print(f"在第 {s+1} 秒成功验证作品已发布！当前页面 URL: {cur_url}")
                 success = True
                 break
 

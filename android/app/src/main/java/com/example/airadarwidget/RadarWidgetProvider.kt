@@ -26,28 +26,26 @@ class RadarWidgetProvider : AppWidgetProvider() {
             appWidgetManager: AppWidgetManager,
             appWidgetId: Int
         ) {
-            // Set up the intent that starts the RemoteViewsService, which will
-            // provide the views for this collection.
+            // 设置启动 RemoteViewsService 的 Intent，为集合视图提供数据源
             val intent = Intent(context, RadarWidgetService::class.java).apply {
-                // Add the app widget ID to the intent extras.
+                // 将 App Widget ID 附加到 Intent 参数中
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
                 data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
             }
 
-            // Instantiate the RemoteViews object for the app widget layout.
+            // 实例化小组件布局的 RemoteViews 对象
             val views = RemoteViews(context.packageName, R.layout.widget_layout).apply {
-                // Set up the RemoteViews object to use a RemoteViews adapter.
-                // This adapter connects to a RemoteViewsService through the specified intent.
+                // 配置 RemoteViews 适配器以连接 RemoteViewsService 服务
                 setRemoteAdapter(R.id.widget_list_view, intent)
                 setEmptyView(R.id.widget_list_view, R.id.empty_view)
                 
-                // Set current date
+                // 绑定当前更新时间
                 val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault())
                 val currentDate = sdf.format(java.util.Date())
                 setTextViewText(R.id.widget_date, currentDate)
             }
 
-            // Template for item click to open browser (API 34+ fix: use explicit intent)
+            // 列表项点击跳转模板（适配 Android 14+ / API 34+ 显式 Intent 契约）
             val clickIntentTemplate = Intent(context, MainActivity::class.java)
             val clickPendingIntentTemplate: PendingIntent = PendingIntent.getActivity(
                 context, 0, clickIntentTemplate,
@@ -55,7 +53,7 @@ class RadarWidgetProvider : AppWidgetProvider() {
             )
             views.setPendingIntentTemplate(R.id.widget_list_view, clickPendingIntentTemplate)
 
-            // Instruct the widget manager to update the widget
+            // 通知 AppWidgetManager 更新小组件视图与列表数据
             appWidgetManager.updateAppWidget(appWidgetId, views)
             appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_list_view)
         }

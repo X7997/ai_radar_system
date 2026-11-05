@@ -2,12 +2,12 @@
 # -*- coding: utf-8 -*-
 
 """
-AI Radar Cloud-Native Publisher for Alibaba Cloud ECS (8.134.59.150)
-Runs daily at 07:25 CST via crontab.
-1. Pulls structured task from Korea VPS (47.80.9.117) via SFTP (fallback to Gist).
-2. Renders 1080x1440 editorial cards with Microsoft YaHei fonts.
-3. Publishes to Douyin creator platform via headless Playwright.
-4. Uploads publish receipt to Korea VPS for the 07:45 Watchdog check.
+AI Radar 阿里云 ECS 云原生自动发布引擎 (8.134.59.150)
+每日 07:25 (北京时间) 通过 crontab 定时执行：
+1. 通过 SFTP 从韩国大脑 VPS (47.80.9.117) 拉取结构化排版任务 (若失败则降级通过 GitHub Gist 同步)。
+2. 使用微软雅黑字体渲染 1080x1440 高清编辑风格卡片。
+3. 借助无头 Playwright 自动化发布至抖音创作者服务平台。
+4. 将发布回执上传至韩国 VPS，供 07:45 看门狗 (Watchdog) 执行自动化巡检与邮件告警。
 """
 
 import os
@@ -110,7 +110,7 @@ TITLE_ENTITY_PATTERNS = [
 ]
 
 def find_title_highlights(title_text):
-    """Find at most 2 entity highlights in the title."""
+    """在标题中提取至多2个核心高亮实体。"""
     found = []
     for pat in TITLE_ENTITY_PATTERNS:
         for m in re.finditer(pat, title_text, re.IGNORECASE):
@@ -126,7 +126,7 @@ def find_title_highlights(title_text):
     return [match_str for _, _, match_str in found[:2]]
 
 def find_body_highlights(desc_text):
-    """Find at most 2 highlights in body text: bold terms or high-signal metrics."""
+    """在正文摘要中提取至多2个高亮词汇（加粗词或高频核心指标）。"""
     found = []
     bold_matches = list(re.finditer(r'\*\*(.*?)\*\*', desc_text))
     for m in bold_matches:
@@ -149,7 +149,7 @@ def find_body_highlights(desc_text):
     return found[:2]
 
 def tokenize_with_markers(text, highlights):
-    """Tokenize text while tagging which tokens are part of a highlight."""
+    """将文本切分为词元流，并标记是否属于高亮词。"""
     if not highlights:
         tokens = re.findall(r'[a-zA-Z0-9_\-\.\/\@\:\%\+]+|[\u4e00-\u9fff]|[\u3000-\u303f\uff00-\uffef]|[^\w\s]|\s+', text)
         return [(tok, False) for tok in tokens]
@@ -186,7 +186,7 @@ def tokenize_with_markers(text, highlights):
     return parts
 
 def wrap_tokens(token_stream, font, max_w):
-    """Natural wrapping across full width."""
+    """根据卡片宽度自然折行。"""
     lines = []
     curr_line = []
     curr_w = 0
@@ -211,7 +211,7 @@ def wrap_tokens(token_stream, font, max_w):
 # ==========================================
 
 def get_editorial_fonts():
-    """Load bold and regular fonts with fallbacks."""
+    """跨平台加载微软雅黑加粗与常规字体。"""
     font_bold_path = os.path.join(BASE_DIR, 'msyhbd.ttc')
     font_reg_path = os.path.join(BASE_DIR, 'msyh.ttc')
     
@@ -359,7 +359,7 @@ def render_editorial_cards(events_or_task, date_str=None, output_dir=None):
         pages.append(current_page)
 
     total_pages = len(pages)
-    print(f"Dynamic Greedy Layout: {len(events)} events packed into {total_pages} cohesive pages.")
+    print(f"动态贪心排版：{len(events)} 条资讯紧凑整合为 {total_pages} 页排版卡片。")
 
     # 3. Render all pages
     image_paths = []
@@ -461,7 +461,7 @@ def render_editorial_cards(events_or_task, date_str=None, output_dir=None):
         img.save(card_path, quality=95)
         image_paths.append(card_path)
 
-    print(f"Generated {len(image_paths)} dynamic packed editorial cards successfully!")
+    print(f"成功生成 {len(image_paths)} 张动态编排排版卡片！")
     return image_paths
 
 # ==========================================
@@ -469,8 +469,8 @@ def render_editorial_cards(events_or_task, date_str=None, output_dir=None):
 # ==========================================
 
 def fetch_task_from_server():
-    """Tier 1: Fetch pending task from Korea VPS via SFTP."""
-    print(f"Connecting to Korea VPS ({SERVER_IP})...")
+    """第一梯队：通过 SFTP 从韩国大脑 VPS 拉取待发布任务。"""
+    print(f"正在连接韩国大脑 VPS ({SERVER_IP})...")
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(SERVER_IP, username=SERVER_USER, password=SERVER_PASS, timeout=10)
@@ -487,8 +487,8 @@ def fetch_task_from_server():
     return task
 
 def fetch_task_from_gist(today_str):
-    """Tier 2: Fallback to fetch events directly from GitHub Gist."""
-    print("Falling back to GitHub Gist API...")
+    """第二梯队备用：从 GitHub Gist 备份通道拉取当日资讯事件。"""
+    print("正在启用备用方案：通过 GitHub Gist API 获取数据...")
     url = f"https://api.github.com/gists/{GIST_ID}"
     req = urllib.request.Request(url, headers={'User-Agent': 'AIRadarCloudPublisher'})
     with urllib.request.urlopen(req, timeout=10) as resp:
@@ -515,19 +515,19 @@ def fetch_today_task(today_str):
     try:
         task = fetch_task_from_server()
         if task and task.get("date_str") == today_str:
-            print("Successfully loaded task from Korea VPS!")
+            print("成功从韩国大脑 VPS 加载当日任务！")
             return task
     except Exception as e:
-        print(f"Tier 1 (Korea VPS SFTP) failed: {e}")
+        print(f"第一梯队 (韩国 VPS SFTP) 拉取失败：{e}")
 
     # Tier 2: GitHub Gist
     try:
         task = fetch_task_from_gist(today_str)
         if task and task.get("events"):
-            print("Successfully loaded task from GitHub Gist!")
+            print("成功从 GitHub Gist 加载备用任务！")
             return task
     except Exception as e:
-        print(f"Tier 2 (GitHub Gist) failed: {e}")
+        print(f"第二梯队 (GitHub Gist) 拉取失败：{e}")
 
     return None
 
@@ -549,7 +549,7 @@ def upload_publish_receipt(date_str, target_platforms, success_platforms, failed
         with open(receipt_latest, "w", encoding="utf-8") as f:
             json.dump(receipt, f, ensure_ascii=False, indent=2)
     except Exception as e:
-        print(f"Notice writing local receipt: {e}")
+        print(f"写入本地回执提示：{e}")
 
     try:
         ssh = paramiko.SSHClient()
@@ -562,23 +562,23 @@ def upload_publish_receipt(date_str, target_platforms, success_platforms, failed
         sftp.put(receipt_local, remote_receipt_latest)
         sftp.close()
         ssh.close()
-        print(f"Successfully uploaded publish receipt to Korea VPS ({remote_receipt_latest}).")
+        print(f"成功将发布回执上传至韩国 VPS ({remote_receipt_latest})。")
     except Exception as e:
-        print(f"Warning: Failed to upload publish receipt to Korea VPS: {e}")
+        print(f"警告：上传发布回执至韩国 VPS 失败：{e}")
 
 # ==========================================
 # Main Execution Pipeline
 # ==========================================
 
 def main():
-    parser = argparse.ArgumentParser(description="AI Radar Cloud Publisher")
-    parser.add_argument("--force", action="store_true", help="Force publish even if already posted today")
-    parser.add_argument("--no-publish", action="store_true", help="Only fetch task and render cards without publishing")
+    parser = argparse.ArgumentParser(description="AI Radar 云端自动发布引擎")
+    parser.add_argument("--force", action="store_true", help="强制执行发布（即使今日已发布过）")
+    parser.add_argument("--no-publish", action="store_true", help="仅拉取任务并渲染图片，不执行实际发布")
     args = parser.parse_args()
 
     today_str = datetime.now().strftime('%Y-%m-%d')
-    print(f"[{datetime.now()}] Starting Cloud Publisher on Alibaba Cloud ECS (8.134.59.150)...")
-    print(f"Target date: {today_str}")
+    print(f"[{datetime.now()}] 正在启动阿里云 ECS (8.134.59.150) 云端发布引擎...")
+    print(f"目标发布日期：{today_str}")
     
     last_post_file = os.path.join(BASE_DIR, "last_post_date.txt")
     last_post_date = ""
@@ -588,22 +588,22 @@ def main():
             
     task = fetch_today_task(today_str)
     if not task:
-        print(f"ERROR: No valid task found for today ({today_str}).")
+        print(f"错误：未找到今日 ({today_str}) 的有效发布任务。")
         return
         
     date_str = task.get("date_str")
     if not date_str or date_str != today_str:
-        print(f"[PUBLISHER GUARD REJECT]: Task date '{date_str}' is NOT today '{today_str}'! Skipping.")
+        print(f"[发布拦截安全机制]：任务日期 '{date_str}' 非今日 '{today_str}'！跳过发布。")
         return
 
     # GUARD 2: Avoid duplicate publishing on the same day (unless --force)
     if not args.force and date_str == last_post_date:
-        print(f"Task for {date_str} has already been posted today. Waiting for next day. (Use --force to override)")
+        print(f"日期 {date_str} 的任务今日已成功发布过，等待下一天任务。（可使用 --force 强制覆盖发布）")
         return
 
     events = task.get("events", [])
     if not events:
-        print("No events in task.")
+        print("任务中未包含任何新闻事件。")
         return
 
     # GUARD 3: Content Freshness / Deduplication against previous post
@@ -615,19 +615,19 @@ def main():
                 last_titles = json.load(f)
             overlap = set(new_titles) & set(last_titles)
             if len(overlap) >= len(new_titles) * 0.7:
-                print(f"[PUBLISHER GUARD REJECT]: Refusing to publish! {len(overlap)}/{len(new_titles)} titles overlap with previous post.")
+                print(f"[发布拦截安全机制]：拒绝发布！有 {len(overlap)}/{len(new_titles)} 条新闻标题与上一期高度重合。")
                 return
         except Exception as e:
-            print(f"Notice checking title history: {e}")
+            print(f"检查历史标题记录提示：{e}")
 
-    print(f"Verified fresh task for {date_str} with {len(events)} events!")
+    print(f"成功校验 {date_str} 的全新任务，包含 {len(events)} 条资讯！")
     
     # Render Editorial Newspaper Cards
     cards_dir = os.path.join(BASE_DIR, "generated_cards")
     image_paths = render_editorial_cards(events, date_str, output_dir=cards_dir)
 
     if args.no_publish:
-        print("[Notice] --no-publish flag passed. Cards rendered successfully, skipping Douyin upload.")
+        print("[提示] 检测到 --no-publish 参数，排版卡片已生成，跳过抖音发布流程。")
         return
 
     # Clean title & caption (Douyin minimalist format: strictly 0 URLs, 0 descriptions)
@@ -636,17 +636,17 @@ def main():
     
     # Single-Track: Douyin ONLY
     target_platforms = ["douyin"]
-    print(f"Publishing Strategy for date '{date_str}': Target Platforms = {target_platforms} (Douyin Only)")
+    print(f"日期 '{date_str}' 的发布策略：目标平台 = {target_platforms} (仅抖音)")
     
     success_platforms = []
     failed_platforms = []
 
     for platform in target_platforms:
         poster_script = os.path.join(BASE_DIR, "douyin_stealth_publisher.py")
-        platform_name = "Douyin"
+        platform_name = "抖音"
 
         print(f"\n==========================================")
-        print(f"Executing {poster_script} for {platform_name} with fresh content...")
+        print(f"正在为 {platform_name} 平台执行发布脚本 {poster_script}...")
         print(f"==========================================")
 
         post_data = {
@@ -671,10 +671,10 @@ def main():
             stdout_text = result.stdout.decode('utf-8', errors='replace') if result.stdout else ""
             stderr_text = result.stderr.decode('utf-8', errors='replace') if result.stderr else ""
             
-            print(f"--- {platform_name} Publish Output ---")
+            print(f"--- {platform_name} 发布控制台输出 ---")
             print(stdout_text)
             if stderr_text:
-                print(f"--- {platform_name} Errors ---")
+                print(f"--- {platform_name} 错误日志 ---")
                 print(stderr_text)
                 
             is_success = False
@@ -682,19 +682,19 @@ def main():
                 is_success = True
 
             if is_success:
-                print(f"[{platform_name}] Successfully published from Cloud Publisher!")
+                print(f"[{platform_name}] 云端发布引擎执行发布成功！")
                 success_platforms.append(platform_name)
             else:
-                print(f"[{platform_name}] Failed to publish. See detailed output above.")
+                print(f"[{platform_name}] 发布失败，请参阅上方详细输出。")
                 failed_platforms.append(platform_name)
         except Exception as e:
-            print(f"[{platform_name}] Exception running poster: {e}")
+            print(f"[{platform_name}] 执行发布脚本异常：{e}")
             failed_platforms.append(platform_name)
 
     print("\n==========================================")
-    print(f"Publishing Summary for {date_str}:")
-    print(f"Successful: {success_platforms}")
-    print(f"Failed:     {failed_platforms}")
+    print(f"{date_str} 发布结果汇总：")
+    print(f"发布成功平台：{success_platforms}")
+    print(f"发布失败平台：{failed_platforms}")
     print("==========================================")
 
     if success_platforms:
@@ -702,9 +702,9 @@ def main():
             f.write(date_str)
         with open(last_titles_file, "w", encoding="utf-8") as f:
             json.dump(new_titles, f, ensure_ascii=False)
-        print(f"Updated {last_post_file} and history for {date_str}.")
+        print(f"已成功更新 {last_post_file} 及 {date_str} 的历史发布记录。")
     else:
-        print(f"ERROR: Target platform failed to publish for {date_str}. last_post_date not updated.")
+        print(f"错误：{date_str} 目标平台发布未成功，未更新 last_post_date。")
 
     # Always upload publish receipt to Korea VPS for watchdog verification
     upload_publish_receipt(date_str, target_platforms, success_platforms, failed_platforms)

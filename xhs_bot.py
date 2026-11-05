@@ -13,25 +13,25 @@ async def main():
         user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         
         if os.path.exists('state.json'):
-            print("Found existing state.json. Logging in with saved state...")
+            print("发现已存在的 state.json，使用已保存的会话状态登录...")
             context = await browser.new_context(storage_state='state.json', viewport={'width': 1920, 'height': 1080}, user_agent=user_agent)
             page = await context.new_page()
             await page.goto('https://creator.xiaohongshu.com/creator/home')
             await page.wait_for_timeout(3000)
         else:
-            print("No state.json found. Navigating to login page...")
+            print("未检测到 state.json，正在跳转至登录页面...")
             context = await browser.new_context(viewport={'width': 1920, 'height': 1080}, user_agent=user_agent)
             page = await context.new_page()
             
             await page.goto('https://creator.xiaohongshu.com/login')
             await page.wait_for_timeout(5000)
             
-            # Fill Phone Number
-            print("Filling phone number...")
+            # 填写手机号码
+            print("正在填写手机号码...")
             await page.get_by_placeholder("手机号").fill("19731194079")
             
-            # Check the agreement box
-            print("Checking agreement...")
+            # 勾选用户服务协议
+            print("正在勾选服务协议...")
             try:
                 await page.locator('.agree-icon').click(timeout=3000)
             except:
@@ -46,8 +46,8 @@ async def main():
                     sms_code = f.read().strip()
                     
             if not sms_code:
-                # Click Send Code
-                print("Clicking Send Code...")
+                # 点击发送验证码
+                print("正在点击发送验证码...")
                 await page.get_by_text("发送验证码").click()
                 
                 print("WAITING_FOR_SMS_CODE")
@@ -60,41 +60,41 @@ async def main():
                     await asyncio.sleep(1)
                     
                 if not sms_code:
-                    print("Timeout waiting for SMS code file.")
+                    print("等待短信验证码文件超时。")
                     await page.screenshot(path='error_timeout.png')
                     await browser.close()
                     return
             else:
-                print(f"Found existing SMS code: {sms_code}. Skipping send click.")
+                print(f"发现已存在的验证码: {sms_code}，跳过点击发送。")
                 
-            print(f"Filling SMS code: {sms_code}...")
-            # Ensure it fills correctly
+            print(f"正在填写短信验证码: {sms_code}...")
+            # 确保验证码填写准确
             await page.get_by_placeholder("验证码").fill("")
             await page.get_by_placeholder("验证码").fill(sms_code)
             
-            print("Clicking Login...")
+            print("正在点击登录按钮...")
             try:
                 await page.evaluate("document.querySelector('.beer-login-btn').click()")
             except Exception as e:
-                print("JS click fallback failed:", e)
+                print("JS 注入模拟点击备用方案失败:", e)
                 await page.locator('button').last.click(force=True)
             
-            print("Waiting for login success...")
+            print("正在等待登录成功跳转...")
             try:
                 await page.wait_for_url('**/creator.xiaohongshu.com/**/home**', timeout=15000)
-                print("Login successful!")
+                print("登录成功！")
                 await page.wait_for_timeout(3000)
-                print("Saving session to state.json")
+                print("正在将会话状态持久化保存至 state.json...")
                 await context.storage_state(path='state.json')
             except Exception as e:
-                print("Login failed:", e)
+                print("登录失败:", e)
                 await page.screenshot(path='error_login.png', full_page=True)
                 await browser.close()
                 return
                 
-        # We are logged in
-        print("Dashboard URL:", page.url)
-        print("Taking dashboard screenshot to dashboard.png")
+        # 已成功处于登录状态
+        print("当前工作台 URL:", page.url)
+        print("正在截取工作台屏幕保存至 dashboard.png...")
         await page.screenshot(path='dashboard.png', full_page=True)
         await browser.close()
 

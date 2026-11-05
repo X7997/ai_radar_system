@@ -26,7 +26,7 @@ class MainActivity : Activity() {
         }
         
         val textView = TextView(this)
-        textView.text = "Loading..."
+        textView.text = "正在连接 AI Radar 数据中枢..."
         textView.setPadding(32, 32, 32, 32)
         
         val scrollView = ScrollView(this)
@@ -45,12 +45,12 @@ class MainActivity : Activity() {
                 
                 if (connection.responseCode == HttpURLConnection.HTTP_OK) {
                     val response = connection.inputStream.bufferedReader().readText()
-                    runOnUiThread { textView.text = "Success! Data:\n\n$response" }
+                    runOnUiThread { textView.text = "今日早报数据已同步成功：\n\n$response" }
                 } else {
-                    runOnUiThread { textView.text = "Error HTTP ${connection.responseCode}" }
+                    runOnUiThread { textView.text = "网络连接异常 HTTP ${connection.responseCode}" }
                 }
             } catch (e: Exception) {
-                runOnUiThread { textView.text = "Exception: ${e.message}\n\n${e.stackTraceToString()}" }
+                runOnUiThread { textView.text = "数据获取异常：${e.message}\n\n${e.stackTraceToString()}" }
             }
         }
     }

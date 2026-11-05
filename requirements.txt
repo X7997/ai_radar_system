@@ -1,8 +1,9 @@
-playwright>=1.40.0
-playwright-stealth>=1.0.6
-Pillow>=10.0.0
-paramiko>=3.3.0
-google-genai
-requests>=2.31.0
-beautifulsoup4>=4.12.0
-python-dotenv>=1.0.0
+# AI Radar 核心自动化依赖库清单
+playwright>=1.40.0        # 无头浏览器自动化引擎
+playwright-stealth>=1.0.6 # 浏览器反爬与真实家庭环境指纹伪装套件
+Pillow>=10.0.0            # 自适应报纸长图与文字排版渲染引擎
+paramiko>=3.3.0           # 跨国多节点高安全 SFTP 与 SSH 协同调度
+google-genai              # 谷歌官方 Gemini 大模型 SDK
+requests>=2.31.0          # HTTP 网络请求库
+beautifulsoup4>=4.12.0    # 网页 HTML 数据解析与提取
+python-dotenv>=1.0.0      # 环境变量加载工具

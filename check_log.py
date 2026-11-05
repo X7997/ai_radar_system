@@ -1,3 +1,4 @@
+import os
 import paramiko
 import sys
 import time
@@ -11,9 +12,9 @@ def run_command(ssh, cmd):
 try:
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh.connect('8.129.129.246', username='root', password='qryyds7.9.', timeout=10)
+    ssh.connect('8.129.129.246', username='root', password=os.getenv("SERVER_PASS", "your_server_password"), timeout=10)
     
-    print("Checking xhs.log on server...")
+    print("正在检查服务器上的 xhs.log 日志...")
     out = run_command(ssh, 'tail -n 20 /root/xhs.log')
     print(out)
     

@@ -28,7 +28,7 @@ def fetch_summarized_events_from_gmail():
     imap_server = os.environ.get("IMAP_SERVER", "imap.qq.com")
     
     if not imap_user or not imap_password:
-        print("Missing IMAP_USER or IMAP_PASSWORD in .env.")
+        print("缺少 IMAP_USER 或 IMAP_PASSWORD 环境变量配置。")
         return None, None
 
     today_str = datetime.now().strftime('%Y-%m-%d')
@@ -41,7 +41,7 @@ def fetch_summarized_events_from_gmail():
 
         status, messages = mail.search(None, 'ALL')
         if status != "OK" or not messages[0]:
-            print("No emails found in mailbox.")
+            print("邮箱收件箱中未找到邮件。")
             mail.logout()
             return None, None
             
@@ -65,7 +65,7 @@ def fetch_summarized_events_from_gmail():
                         latest_email_id = eid
                         break
                     else:
-                        print(f"Found older AI Radar email ID {eid.decode()} with date {email_date_found}, looking for today ({today_str})...")
+                        print(f"检测到历史 AI Radar 邮件 (ID: {eid.decode()}, 日期: {email_date_found})，继续寻找今日 ({today_str}) 邮件...")
                 else:
                     # Fallback check X-AI-Radar-Date header
                     x_date = msg_temp.get("X-AI-Radar-Date", "")
@@ -75,12 +75,12 @@ def fetch_summarized_events_from_gmail():
                         break
 
         if not latest_email_id:
-            print(f"[FRESHNESS GUARD REJECTED]: No AI Radar email matching today's date ({today_str}) found in inbox!")
-            print(f"Most recent email was dated {email_date_found}. Refusing to process stale email.")
+            print(f"[新鲜度防护拦截]: 收件箱中未检索到今日 ({today_str}) 的 AI Radar 早报邮件！")
+            print(f"最近一封邮件日期为 {email_date_found}，拒绝处理过期资讯。")
             mail.logout()
             return None, None
             
-        print(f"Verified fresh email for {today_str}! Fetching email ID: {latest_email_id.decode()}...")
+        print(f"成功验证今日 ({today_str}) 新鲜邮件！正在获取邮件内容 (ID: {latest_email_id.decode()})...")
         status, msg_data = mail.fetch(latest_email_id, '(RFC822)')
         mail.logout()
         
@@ -111,7 +111,7 @@ def fetch_summarized_events_from_gmail():
                     pass
 
         if not body:
-            print("Could not extract plain text body from email.")
+            print("未能从邮件中解析出纯文本正文。")
             return None, None
             
         # Strip forwarding headers
@@ -177,9 +177,9 @@ def fetch_summarized_events_from_gmail():
                     "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 })
                 
-        print(f"Successfully extracted {len(events)} fresh events for {today_str}.")
+        print(f"成功为 {today_str} 解析出 {len(events)} 条新鲜科技情报！")
         return events, today_str
 
     except Exception as e:
-        print(f"Error fetching email: {e}")
+        print(f"获取解析邮件异常: {e}")
         return None, None

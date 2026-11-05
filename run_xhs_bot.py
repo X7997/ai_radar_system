@@ -1,8 +1,9 @@
+import os
 import paramiko
 import sys
 
 def run_command(ssh, cmd):
-    print(f"Running: {cmd}")
+    print(f"正在执行: {cmd}")
     stdin, stdout, stderr = ssh.exec_command(cmd, get_pty=True)
     
     while not stdout.channel.exit_status_ready():
@@ -17,13 +18,13 @@ def run_command(ssh, cmd):
         sys.stdout.flush()
 
 try:
-    print("Connecting to 8.129.129.246...")
+    print("正在连接服务器 8.129.129.246...")
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh.connect('8.129.129.246', username='root', password='qryyds7.9.', timeout=10)
-    print("Connected successfully!")
+    ssh.connect('8.129.129.246', username='root', password=os.getenv("SERVER_PASS", "your_server_password"), timeout=10)
+    print("服务器连接成功！")
     
-    print("Uploading xhs_bot.py...")
+    print("正在上传 xhs_bot.py 到服务器...")
     sftp = ssh.open_sftp()
     sftp.put('xhs_bot.py', '/root/xhs_bot.py')
     sftp.close()

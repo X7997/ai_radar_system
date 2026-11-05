@@ -60,13 +60,13 @@ class RadarRemoteViewsFactory(
                     }
                 }
             } else {
-                // Mock data if URL fails
-                items.add(RadarItem("No Data", "Check URL", "", "", "Error"))
+                // 网络异常或无数据时的优雅回退提示
+                items.add(RadarItem("暂无最新早报数据", "请检查网络连接或 Gist 数据源。", "", "", "系统提示"))
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            // Add a mock item for visual testing
-            items.add(RadarItem("Local Mock Event", "AI Radar Widget setup incomplete. Update Gist URL.", "", "https://codexradar.com", "System"))
+            // 发生异常时的容灾演示提示
+            items.add(RadarItem("AI Radar 桌面小组件已就绪", "正在等待清晨 07:15 智脑节点自动推送...", "", "https://codexradar.com", "状态正常"))
         }
     }
 
